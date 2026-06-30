@@ -1,9 +1,11 @@
-import { useState } from 'react'
-import { useAppState } from '../store.tsx'
-import { Icon, type IconName } from '../components/Icon.tsx'
+import { useState, type CSSProperties } from 'react'
+import { useAppState, TILE_LABEL, type ElderTileKey } from '../store.tsx'
+import { Icon } from '../components/Icon.tsx'
+import { TILE_META } from './tileMeta.ts'
 
 export function ElderApp() {
   const { state, dispatch } = useAppState()
+  const { elderLayout } = state
   const [sosCountdown, setSosCountdown] = useState<number | null>(null)
   const reminder = state.activeReminderId
     ? state.meds.find((m) => m.id === state.activeReminderId)
@@ -25,21 +27,35 @@ export function ElderApp() {
     }, 1000)
   }
 
-  const tiles: { cls: string; icon: IconName; label: string; onClick: () => void }[] = [
-    { cls: 'call', icon: 'phone', label: `给${state.guardianName}打电话`, onClick: () => alert(`正在拨打：${state.guardianName}（原型演示）`) },
-    { cls: 'video', icon: 'video', label: '视频家人', onClick: () => alert('正在发起视频（原型演示）') },
-    {
-      cls: 'med',
-      icon: 'pill',
-      label: '我的吃药',
-      onClick: () =>
-        dispatch({ type: 'TRIGGER_REMINDER', id: state.meds.find((m) => m.status !== 'taken')?.id ?? state.meds[0].id }),
-    },
-    { cls: 'album', icon: 'image', label: '家庭相册', onClick: () => alert('打开家庭相册（原型演示）') },
-  ]
+  const triggerMed = () =>
+    dispatch({ type: 'TRIGGER_REMINDER', id: state.meds.find((m) => m.status !== 'taken')?.id ?? state.meds[0].id })
+
+  const tileLabel = (key: ElderTileKey) =>
+    key === 'call' ? `给${state.guardianName}打电话` : TILE_LABEL[key]
+
+  const tileAction = (key: ElderTileKey): (() => void) => {
+    switch (key) {
+      case 'call': return () => alert(`正在拨打：${state.guardianName}（原型演示）`)
+      case 'video': return () => alert('正在发起视频（原型演示）')
+      case 'med': return triggerMed
+      case 'album': return () => alert('打开家庭相册（原型演示）')
+      case 'radio': return () => alert('打开收音机 · 戏曲台（原型演示）')
+      case 'askChild': return () => alert(`已把当前页面发给${state.guardianName}帮你看看（原型演示）`)
+    }
+  }
+
+  const tiles = elderLayout.tiles.filter((t) => t.enabled)
+  const appStyle = { '--e-scale': elderLayout.fontScale } as CSSProperties
 
   return (
-    <div className="e-app">
+    <div className={`e-app${elderLayout.highContrast ? ' hc' : ''}`} style={appStyle}>
+      {state.layoutPushedAt && (
+        <div className="e-layout-notice">
+          <span><Icon name="wand" size={18} /> {state.guardianName}帮你调整了主屏</span>
+          <button onClick={() => dispatch({ type: 'DISMISS_LAYOUT_NOTICE' })}>知道了</button>
+        </div>
+      )}
+
       {state.screenAssist === 'active' && (
         <div className="e-assist-bar">
           <span><i className="live-dot" /> 孩子正在帮你看手机</span>
@@ -53,17 +69,21 @@ export function ElderApp() {
       </div>
 
       <div className="e-grid">
-        {tiles.map((t) => (
-          <button key={t.cls} className={`e-card ${t.cls}`} onClick={t.onClick}>
-            <span className="e-ico"><Icon name={t.icon} size={34} /></span>
-            <span className="e-card-label">{t.label}</span>
-          </button>
-        ))}
+        {tiles.map((t) => {
+          const meta = TILE_META[t.key]
+          return (
+            <button key={t.key} className={`e-card ${meta.cls}`} onClick={tileAction(t.key)}>
+              <span className="e-ico"><Icon name={meta.icon} size={34} /></span>
+              <span className="e-card-label">{tileLabel(t.key)}</span>
+            </button>
+          )
+        })}
       </div>
 
       <div className="e-care">
         <span className="e-care-ico"><Icon name="clock" size={20} /></span>
-        记得 12:30 吃降糖药，饭前一片
+        <span className="grow">记得 12:30 吃降糖药，饭前一片</span>
+        {elderLayout.voice && <span className="e-care-voice"><Icon name="mic" size={18} /></span>}
       </div>
 
       <div className="e-bottom">
@@ -87,7 +107,9 @@ export function ElderApp() {
               <button className="e-yes" onClick={() => dispatch({ type: 'TAKE_MED', id: reminder.id })}>已经吃了</button>
               <button className="e-later" onClick={() => dispatch({ type: 'SNOOZE_MED', id: reminder.id })}>稍后提醒</button>
             </div>
-            <div className="e-sheet-voice"><Icon name="mic" size={16} /> 正在语音播报…</div>
+            {elderLayout.voice && (
+              <div className="e-sheet-voice"><Icon name="mic" size={16} /> 正在语音播报…</div>
+            )}
           </div>
         </div>
       )}

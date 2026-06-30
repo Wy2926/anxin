@@ -1,1 +1,1 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/store.tsx","./src/components/Icon.tsx","./src/elder/ElderApp.tsx","./src/guardian/Dashboard.tsx","./src/guardian/GuardianApp.tsx","./src/guardian/MedManager.tsx","./src/guardian/Messages.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/store.tsx","./src/components/icon.tsx","./src/elder/elderapp.tsx","./src/elder/tilemeta.ts","./src/guardian/dashboard.tsx","./src/guardian/guardianapp.tsx","./src/guardian/medmanager.tsx","./src/guardian/messages.tsx","./src/guardian/orchestrator.tsx"],"version":"5.9.3"}

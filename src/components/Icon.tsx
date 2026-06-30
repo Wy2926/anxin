@@ -20,6 +20,15 @@ export type IconName =
   | 'mic'
   | 'x'
   | 'clock'
+  | 'radio'
+  | 'help'
+  | 'arrowUp'
+  | 'arrowDown'
+  | 'sliders'
+  | 'contrast'
+  | 'type'
+  | 'rotate'
+  | 'wand'
 
 const paths: Record<IconName, JSX.Element> = {
   home: <path d="M3 10.5 12 3l9 7.5M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" />,
@@ -89,6 +98,48 @@ const paths: Record<IconName, JSX.Element> = {
     <>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 7v5l3 2" />
+    </>
+  ),
+  radio: (
+    <>
+      <rect x="3" y="8" width="18" height="12" rx="2.5" />
+      <path d="M7 4.5 17 8" />
+      <circle cx="16" cy="14" r="3" />
+      <path d="M7 12v0M7 16v0" />
+    </>
+  ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.2 9.3a2.8 2.8 0 0 1 5.3 1c0 1.8-2.5 2-2.5 3.7M12 17.5v0" />
+    </>
+  ),
+  arrowUp: <path d="M12 19V5M6 11l6-6 6 6" />,
+  arrowDown: <path d="M12 5v14M6 13l6 6 6-6" />,
+  sliders: (
+    <>
+      <path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M18 18h2" />
+      <circle cx="15" cy="6" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="15" cy="18" r="2" />
+    </>
+  ),
+  contrast: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a9 9 0 0 0 0 18Z" fill="currentColor" stroke="none" />
+    </>
+  ),
+  type: <path d="M5 6h14M12 6v13M9 19h6" />,
+  rotate: (
+    <>
+      <path d="M4 12a8 8 0 1 1 2.3 5.6" />
+      <path d="M4 19v-4h4" />
+    </>
+  ),
+  wand: (
+    <>
+      <path d="M5 19 17 7M14 4l1.2 2.4L18 7.6l-2.4 1.2L14 11l-1.2-2.2L10 7.6l2.4-1.2L14 4Z" />
     </>
   ),
 }

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { Dashboard } from './Dashboard.tsx'
 import { MedManager } from './MedManager.tsx'
 import { Messages } from './Messages.tsx'
-import { useAppState } from '../store.tsx'
+import { Orchestrator } from './Orchestrator.tsx'
+import { useAppState, TEMPLATE_LABEL } from '../store.tsx'
 import { Icon, type IconName } from '../components/Icon.tsx'
 
 type Tab = 'home' | 'guard' | 'messages' | 'me'
@@ -16,8 +17,11 @@ const tabs: { key: Tab; label: string; icon: IconName }[] = [
 
 export function GuardianApp() {
   const [tab, setTab] = useState<Tab>('home')
+  const [orchestrating, setOrchestrating] = useState(false)
   const { state } = useAppState()
   const urgent = state.alerts.filter((a) => a.level === 'urgent').length
+
+  if (orchestrating) return <Orchestrator onClose={() => setOrchestrating(false)} />
 
   return (
     <div className="g-app">
@@ -25,7 +29,7 @@ export function GuardianApp() {
         {tab === 'home' && <Dashboard />}
         {tab === 'guard' && <MedManager />}
         {tab === 'messages' && <Messages />}
-        {tab === 'me' && <Me />}
+        {tab === 'me' && <Me onOrchestrate={() => setOrchestrating(true)} />}
       </div>
 
       <nav className="g-tabbar">
@@ -43,14 +47,26 @@ export function GuardianApp() {
   )
 }
 
-function Me() {
+function Me({ onOrchestrate }: { onOrchestrate: () => void }) {
   const { state } = useAppState()
+  const enabledCount = state.elderLayout.tiles.filter((t) => t.enabled).length
   return (
     <div className="g-page">
       <header className="g-head">
         <h2>家庭</h2>
         <p className="g-sub">守护关系与隐私</p>
       </header>
+
+      <button className="card orch-entry" onClick={onOrchestrate}>
+        <span className="orch-entry-ico"><Icon name="wand" size={22} /></span>
+        <div className="grow">
+          <strong>编排{state.elderName}的手机界面</strong>
+          <div className="muted xs">
+            当前「{TEMPLATE_LABEL[state.elderLayout.template]}」· {enabledCount} 个入口 · 字号 {state.elderLayout.fontScale.toFixed(1)}×
+          </div>
+        </div>
+        <Icon name="chevron" size={18} />
+      </button>
 
       <div className="card">
         <div className="member-row">

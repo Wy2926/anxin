@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/store.tsx","./src/components/icon.tsx","./src/elder/elderapp.tsx","./src/elder/tilemeta.ts","./src/guardian/dashboard.tsx","./src/guardian/guardianapp.tsx","./src/guardian/medmanager.tsx","./src/guardian/messages.tsx","./src/guardian/orchestrator.tsx"],"version":"5.9.3"}

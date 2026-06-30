@@ -31,6 +31,8 @@ export type IconName =
   | 'wand'
   | 'users'
   | 'plusCircle'
+  | 'mapPin'
+  | 'activity'
 
 const paths: Record<IconName, JSX.Element> = {
   home: <path d="M3 10.5 12 3l9 7.5M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" />,
@@ -156,6 +158,13 @@ const paths: Record<IconName, JSX.Element> = {
       <path d="M12 8v8M8 12h8" />
     </>
   ),
+  mapPin: (
+    <>
+      <path d="M12 21s7-5.5 7-11a7 7 0 0 0-14 0c0 5.5 7 11 7 11Z" />
+      <circle cx="12" cy="10" r="2.5" />
+    </>
+  ),
+  activity: <path d="M3 12h4l2.5 7L14 4l2.5 8H21" />,
 }
 
 interface IconProps extends Omit<SVGProps<SVGSVGElement>, 'name'> {

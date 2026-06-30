@@ -3,6 +3,7 @@ import { Dashboard } from './Dashboard.tsx'
 import { MedManager } from './MedManager.tsx'
 import { Messages } from './Messages.tsx'
 import { Orchestrator } from './Orchestrator.tsx'
+import { AuditLog } from './AuditLog.tsx'
 import { useAppState, TEMPLATE_LABEL } from '../store.tsx'
 import { Icon, type IconName } from '../components/Icon.tsx'
 
@@ -18,10 +19,12 @@ const tabs: { key: Tab; label: string; icon: IconName }[] = [
 export function GuardianApp() {
   const [tab, setTab] = useState<Tab>('home')
   const [orchestrating, setOrchestrating] = useState(false)
+  const [auditing, setAuditing] = useState(false)
   const { state } = useAppState()
   const urgent = state.alerts.filter((a) => a.level === 'urgent').length
 
   if (orchestrating) return <Orchestrator onClose={() => setOrchestrating(false)} />
+  if (auditing) return <AuditLog onClose={() => setAuditing(false)} />
 
   return (
     <div className="g-app">
@@ -30,7 +33,7 @@ export function GuardianApp() {
         {tab === 'home' && <Dashboard />}
         {tab === 'guard' && <MedManager />}
         {tab === 'messages' && <Messages />}
-        {tab === 'me' && <Me onOrchestrate={() => setOrchestrating(true)} />}
+        {tab === 'me' && <Me onOrchestrate={() => setOrchestrating(true)} onAudit={() => setAuditing(true)} />}
       </div>
 
       <nav className="g-tabbar">
@@ -76,7 +79,7 @@ function ElderSwitcher() {
   )
 }
 
-function Me({ onOrchestrate }: { onOrchestrate: () => void }) {
+function Me({ onOrchestrate, onAudit }: { onOrchestrate: () => void; onAudit: () => void }) {
   const { state, active } = useAppState()
   const enabledCount = active.elderLayout.tiles.filter((t) => t.enabled).length
   return (
@@ -121,12 +124,15 @@ function Me({ onOrchestrate }: { onOrchestrate: () => void }) {
         <PermRow label="远程看屏（单次授权）" on={false} note="默认关 · 每次需父母同意" />
         <PermRow label="实时定位" on={false} note="默认关" />
         <PermRow label="用药提醒管理" on />
+        <button className="link-btn" onClick={onAudit}>
+          <Icon name="shield" size={16} /> 查看隐私与审计日志（{active.audit.length}） <Icon name="chevron" size={14} />
+        </button>
       </div>
 
-      <div className="card accent-card">
+      <button className="card accent-card audit-entry" onClick={onAudit}>
         <strong>隐私护栏</strong>
-        <p className="muted sm">所有监督能力均为「邀请-同意 + 限时 + 留痕」，父母端可随时一键关闭。关怀 &gt; 监控。</p>
-      </div>
+        <p className="muted sm">所有监督能力均为「邀请-同意 + 限时 + 留痕」，父母端可随时一键关闭。点击查看审计记录。关怀 &gt; 监控。</p>
+      </button>
     </div>
   )
 }

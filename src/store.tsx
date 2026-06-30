@@ -59,6 +59,10 @@ export interface Elder {
   elderLayout: ElderLayout
   /** 子女最近一次推送编排的时间标签；非空表示该家长有未读「主屏已更新」提示 */
   layoutPushedAt: string | null
+  /** 近 7 日血压/心率读数（趋势用，最后一项为最新） */
+  bp: BpReading[]
+  /** 敏感访问留痕（最新在前） */
+  audit: AuditEntry[]
 }
 
 export interface Alert {
@@ -66,6 +70,26 @@ export interface Alert {
   elderId: string
   level: 'info' | 'warn' | 'urgent'
   title: string
+  detail: string
+  time: string
+}
+
+/** 一次血压/心率读数（趋势用） */
+export interface BpReading {
+  day: string
+  sys: number
+  dia: number
+  hr: number
+}
+
+/** 敏感访问留痕（看屏 / 推送布局 / 定位 / 读取健康），父母可见、不可篡改 */
+export type AuditScope = 'screen' | 'layout' | 'location' | 'health'
+
+export interface AuditEntry {
+  id: string
+  elderId: string
+  scope: AuditScope
+  action: string
   detail: string
   time: string
 }
@@ -128,6 +152,7 @@ type Action =
   | { type: 'ADD_MED'; med: Medication }
   | { type: 'APPLY_ELDER_LAYOUT'; layout: ElderLayout }
   | { type: 'DISMISS_LAYOUT_NOTICE' }
+  | { type: 'ADD_BP'; reading: BpReading }
 
 function nowLabel(): string {
   return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
@@ -135,6 +160,15 @@ function nowLabel(): string {
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 9)
+}
+
+function audit(elderId: string, scope: AuditScope, action: string, detail: string): AuditEntry {
+  return { id: uid(), elderId, scope, action, detail, time: nowLabel() }
+}
+
+/** 收缩压分级：用于趋势卡的状态语义（不只靠颜色，配文案） */
+export function bpStatus(sys: number): { level: 'ok' | 'warn'; label: string } {
+  return sys >= 140 || sys < 90 ? { level: 'warn', label: '偏高' } : { level: 'ok', label: '平稳' }
 }
 
 const initialState: AppState = {
@@ -155,6 +189,20 @@ const initialState: AppState = {
       activeReminderId: null,
       elderLayout: layout('standard'),
       layoutPushedAt: null,
+      bp: [
+        { day: '周三', sys: 132, dia: 84, hr: 70 },
+        { day: '周四', sys: 128, dia: 82, hr: 72 },
+        { day: '周五', sys: 141, dia: 90, hr: 78 },
+        { day: '周六', sys: 126, dia: 80, hr: 69 },
+        { day: '周日', sys: 136, dia: 86, hr: 74 },
+        { day: '周一', sys: 130, dia: 83, hr: 71 },
+        { day: '今天', sys: 138, dia: 88, hr: 72 },
+      ],
+      audit: [
+        { id: 'e1au1', elderId: 'e1', scope: 'layout', action: '推送首屏布局', detail: '「标准」布局 · 4 个入口', time: '09:50' },
+        { id: 'e1au2', elderId: 'e1', scope: 'health', action: '读取血压记录', detail: '查看近 7 日趋势', time: '昨天 19:02' },
+        { id: 'e1au3', elderId: 'e1', scope: 'location', action: '定位授权（单次）', detail: '已于当晚自动失效', time: '前天 20:10' },
+      ],
       meds: [
         { id: 'e1m1', name: '降压药', dose: '1 片', time: '08:00', note: '饭后', status: 'taken', stock: 12 },
         { id: 'e1m2', name: '降糖药', dose: '1 片', time: '12:30', note: '饭前', status: 'due', stock: 6 },
@@ -175,6 +223,18 @@ const initialState: AppState = {
       activeReminderId: null,
       elderLayout: layout('minimal', { fontScale: 1.2 }),
       layoutPushedAt: null,
+      bp: [
+        { day: '周三', sys: 120, dia: 78, hr: 74 },
+        { day: '周四', sys: 122, dia: 79, hr: 75 },
+        { day: '周五', sys: 118, dia: 76, hr: 73 },
+        { day: '周六', sys: 124, dia: 80, hr: 77 },
+        { day: '周日', sys: 119, dia: 77, hr: 74 },
+        { day: '周一', sys: 121, dia: 78, hr: 76 },
+        { day: '今天', sys: 122, dia: 79, hr: 76 },
+      ],
+      audit: [
+        { id: 'e2au1', elderId: 'e2', scope: 'layout', action: '推送首屏布局', detail: '「极简」布局 · 字号 1.2×', time: '08:30' },
+      ],
       meds: [
         { id: 'e2m1', name: '钙片', dose: '1 片', time: '09:00', note: '早餐后', status: 'taken', stock: 20 },
         { id: 'e2m2', name: '阿司匹林', dose: '1 片', time: '19:00', note: '睡前', status: 'pending', stock: 9 },
@@ -234,7 +294,11 @@ function reducer(state: AppState, action: Action): AppState {
     case 'ACCEPT_SCREEN_ASSIST':
       return {
         ...state,
-        elders: mapActive(state, (e) => ({ ...e, screenAssist: 'active' })),
+        elders: mapActive(state, (e) => ({
+          ...e,
+          screenAssist: 'active',
+          audit: [audit(e.id, 'screen', '看屏协助开始', `${state.guardianName}发起 · 限时 10 分钟`), ...e.audit],
+        })),
         alerts: [
           { id: uid(), elderId: active.id, level: 'info', title: '远程协助已开始', detail: `${active.name}同意了看屏协助`, time: nowLabel() },
           ...state.alerts,
@@ -250,7 +314,16 @@ function reducer(state: AppState, action: Action): AppState {
         ],
       }
     case 'END_SCREEN_ASSIST':
-      return { ...state, elders: mapActive(state, (e) => ({ ...e, screenAssist: 'idle' })) }
+      return {
+        ...state,
+        elders: mapActive(state, (e) => ({
+          ...e,
+          screenAssist: 'idle',
+          audit: e.screenAssist === 'active'
+            ? [audit(e.id, 'screen', '看屏协助结束', '会话已断开 · 已留痕'), ...e.audit]
+            : e.audit,
+        })),
+      }
     case 'SOS':
       return {
         ...state,
@@ -277,7 +350,12 @@ function reducer(state: AppState, action: Action): AppState {
       const enabledCount = action.layout.tiles.filter((t) => t.enabled).length
       return {
         ...state,
-        elders: mapActive(state, (e) => ({ ...e, elderLayout: action.layout, layoutPushedAt: time })),
+        elders: mapActive(state, (e) => ({
+          ...e,
+          elderLayout: action.layout,
+          layoutPushedAt: time,
+          audit: [audit(e.id, 'layout', '推送首屏布局', `「${TEMPLATE_LABEL[action.layout.template]}」· ${enabledCount} 个入口`), ...e.audit],
+        })),
         alerts: [
           {
             id: uid(),
@@ -293,6 +371,26 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'DISMISS_LAYOUT_NOTICE':
       return { ...state, elders: mapActive(state, (e) => ({ ...e, layoutPushedAt: null })) }
+    case 'ADD_BP':
+      return {
+        ...state,
+        elders: mapActive(state, (e) => ({
+          ...e,
+          heart: action.reading.hr,
+          bp: [...e.bp.slice(-6), action.reading],
+        })),
+        alerts: [
+          {
+            id: uid(),
+            elderId: active.id,
+            level: bpStatus(action.reading.sys).level === 'warn' ? 'warn' : 'info',
+            title: bpStatus(action.reading.sys).level === 'warn' ? '血压偏高提醒' : '血压已记录',
+            detail: `${active.name} ${action.reading.sys}/${action.reading.dia} mmHg · 心率 ${action.reading.hr}`,
+            time: nowLabel(),
+          },
+          ...state.alerts,
+        ],
+      }
     default:
       return state
   }

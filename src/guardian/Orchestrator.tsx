@@ -14,8 +14,8 @@ import { TILE_META } from '../elder/tileMeta.ts'
 const TEMPLATES: ElderTemplate[] = ['minimal', 'standard', 'rich']
 
 export function Orchestrator({ onClose }: { onClose: () => void }) {
-  const { state, dispatch } = useAppState()
-  const [draft, setDraft] = useState<ElderLayout>(state.elderLayout)
+  const { state, active, dispatch } = useAppState()
+  const [draft, setDraft] = useState<ElderLayout>(active.elderLayout)
 
   const patch = (p: Partial<ElderLayout>) => setDraft((d) => ({ ...d, ...p }))
 
@@ -38,7 +38,7 @@ export function Orchestrator({ onClose }: { onClose: () => void }) {
     })
 
   const enabledCount = draft.tiles.filter((t) => t.enabled).length
-  const dirty = JSON.stringify(draft) !== JSON.stringify(state.elderLayout)
+  const dirty = JSON.stringify(draft) !== JSON.stringify(active.elderLayout)
 
   return (
     <div className="g-app orch">
@@ -47,10 +47,10 @@ export function Orchestrator({ onClose }: { onClose: () => void }) {
           <Icon name="chevron" size={22} style={{ transform: 'rotate(180deg)' }} />
         </button>
         <div className="grow">
-          <strong>编排「{state.elderName}」的手机</strong>
+          <strong>编排「{active.name}」的手机</strong>
           <div className="muted xs">配置首屏 → 一键推送到设备生效</div>
         </div>
-        <button className="orch-reset" onClick={() => setDraft(state.elderLayout)} disabled={!dirty}>
+        <button className="orch-reset" onClick={() => setDraft(active.elderLayout)} disabled={!dirty}>
           <Icon name="rotate" size={16} /> 还原
         </button>
       </header>
@@ -128,7 +128,7 @@ export function Orchestrator({ onClose }: { onClose: () => void }) {
 
           <div className="orch-preview">
             <div className="muted xs" style={{ textAlign: 'center', marginBottom: 8 }}>父母端实时预览</div>
-            <ElderPreview draft={draft} guardianName={state.guardianName} elderName={state.elderName} />
+            <ElderPreview draft={draft} guardianName={state.guardianName} elderName={active.name} />
           </div>
         </div>
       </div>
@@ -139,7 +139,7 @@ export function Orchestrator({ onClose }: { onClose: () => void }) {
           disabled={!dirty || enabledCount === 0}
           onClick={() => dispatch({ type: 'APPLY_ELDER_LAYOUT', layout: draft })}
         >
-          {enabledCount === 0 ? '至少保留 1 个入口' : dirty ? `推送到 ${state.elderName} 的设备` : '已是最新'}
+          {enabledCount === 0 ? '至少保留 1 个入口' : dirty ? `推送到 ${active.name} 的设备` : '已是最新'}
         </button>
       </div>
     </div>

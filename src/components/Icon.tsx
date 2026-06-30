@@ -29,6 +29,8 @@ export type IconName =
   | 'type'
   | 'rotate'
   | 'wand'
+  | 'users'
+  | 'plusCircle'
 
 const paths: Record<IconName, JSX.Element> = {
   home: <path d="M3 10.5 12 3l9 7.5M5 9.5V20a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9.5" />,
@@ -140,6 +142,18 @@ const paths: Record<IconName, JSX.Element> = {
   wand: (
     <>
       <path d="M5 19 17 7M14 4l1.2 2.4L18 7.6l-2.4 1.2L14 11l-1.2-2.2L10 7.6l2.4-1.2L14 4Z" />
+    </>
+  ),
+  users: (
+    <>
+      <circle cx="9" cy="8" r="3.4" />
+      <path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 5.2a3.4 3.4 0 0 1 0 6.4M17 14.5a5.5 5.5 0 0 1 3.5 5.5" />
+    </>
+  ),
+  plusCircle: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v8M8 12h8" />
     </>
   ),
 }

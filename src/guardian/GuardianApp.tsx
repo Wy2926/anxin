@@ -26,6 +26,7 @@ export function GuardianApp() {
   return (
     <div className="g-app">
       <div className="g-body">
+        {(tab === 'home' || tab === 'guard') && <ElderSwitcher />}
         {tab === 'home' && <Dashboard />}
         {tab === 'guard' && <MedManager />}
         {tab === 'messages' && <Messages />}
@@ -47,9 +48,37 @@ export function GuardianApp() {
   )
 }
 
+function ElderSwitcher() {
+  const { state, active, dispatch } = useAppState()
+  return (
+    <div className="elder-switch">
+      {state.elders.map((e) => {
+        const hasUrgent = state.alerts.some((a) => a.elderId === e.id && a.level === 'urgent')
+        return (
+          <button
+            key={e.id}
+            className={`es-chip ${e.id === active.id ? 'on' : ''}`}
+            onClick={() => dispatch({ type: 'SET_ACTIVE_ELDER', id: e.id })}
+          >
+            <span className="es-avatar">
+              {e.avatar}
+              {hasUrgent && <i className="es-alert" />}
+            </span>
+            <span className="es-name">{e.name}</span>
+          </button>
+        )
+      })}
+      <button className="es-add" onClick={() => alert('邀请新家人加入守护（原型演示）')}>
+        <Icon name="plusCircle" size={22} />
+        <span className="es-name">添加</span>
+      </button>
+    </div>
+  )
+}
+
 function Me({ onOrchestrate }: { onOrchestrate: () => void }) {
-  const { state } = useAppState()
-  const enabledCount = state.elderLayout.tiles.filter((t) => t.enabled).length
+  const { state, active } = useAppState()
+  const enabledCount = active.elderLayout.tiles.filter((t) => t.enabled).length
   return (
     <div className="g-page">
       <header className="g-head">
@@ -60,38 +89,33 @@ function Me({ onOrchestrate }: { onOrchestrate: () => void }) {
       <button className="card orch-entry" onClick={onOrchestrate}>
         <span className="orch-entry-ico"><Icon name="wand" size={22} /></span>
         <div className="grow">
-          <strong>编排{state.elderName}的手机界面</strong>
+          <strong>编排{active.name}的手机界面</strong>
           <div className="muted xs">
-            当前「{TEMPLATE_LABEL[state.elderLayout.template]}」· {enabledCount} 个入口 · 字号 {state.elderLayout.fontScale.toFixed(1)}×
+            当前「{TEMPLATE_LABEL[active.elderLayout.template]}」· {enabledCount} 个入口 · 字号 {active.elderLayout.fontScale.toFixed(1)}×
           </div>
         </div>
         <Icon name="chevron" size={18} />
       </button>
 
       <div className="card">
-        <div className="member-row">
-          <span className="avatar lg">👴</span>
-          <div className="grow">
-            <strong>{state.elderName}</strong>
-            <div className="muted sm">被守护者 · {state.online ? '在线' : '离线'}</div>
+        <div className="card-h"><Icon name="users" size={18} /> 我守护的家人（{state.elders.length}）</div>
+        {state.elders.map((e) => (
+          <div className="member-row mb" key={e.id}>
+            <span className="avatar lg">{e.avatar}</span>
+            <div className="grow">
+              <strong>{e.name}</strong>
+              <div className="muted sm">{e.relation} · {e.online ? '在线' : '离线'}</div>
+            </div>
+            <span className="chip solid">主守护</span>
           </div>
-          <span className="chip solid">主守护</span>
-        </div>
-        <div className="divider" />
-        <div className="member-row">
-          <span className="avatar lg">🧑</span>
-          <div className="grow">
-            <strong>{state.guardianName}（我）</strong>
-            <div className="muted sm">守护者</div>
-          </div>
-          <span className="chip">协同</span>
-        </div>
+        ))}
+        <button className="link-btn" onClick={() => alert('邀请新家人加入守护（原型演示）')}>
+          <Icon name="plusCircle" size={16} /> 邀请其他家人共同守护
+        </button>
       </div>
 
       <div className="card">
-        <div className="card-h">
-          <Icon name="shield" size={18} /> 权限与隐私
-        </div>
+        <div className="card-h"><Icon name="shield" size={18} /> 权限与隐私</div>
         <PermRow label="查看状态 / 电量 / 步数" on />
         <PermRow label="语音 / 视频通话（需接听）" on />
         <PermRow label="远程看屏（单次授权）" on={false} note="默认关 · 每次需父母同意" />

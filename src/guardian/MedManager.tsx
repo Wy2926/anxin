@@ -10,7 +10,7 @@ const medLabel: Record<string, string> = {
 }
 
 export function MedManager() {
-  const { state, dispatch } = useAppState()
+  const { active, dispatch } = useAppState()
   const [name, setName] = useState('')
   const [time, setTime] = useState('18:00')
 
@@ -33,7 +33,7 @@ export function MedManager() {
     <div className="g-page">
       <header className="g-head">
         <h2>用药管理</h2>
-        <p className="g-sub">为{state.elderName}编排用药计划</p>
+        <p className="g-sub">为{active.name}编排用药计划</p>
       </header>
 
       <div className="card">
@@ -47,7 +47,7 @@ export function MedManager() {
 
       <div className="card">
         <div className="card-h"><Icon name="pill" size={18} /> 用药清单</div>
-        {state.meds.map((m) => (
+        {active.meds.map((m) => (
           <div className="list-row" key={m.id}>
             <span className={`list-ico ${m.status}`}><Icon name="pill" size={18} /></span>
             <div className="grow">

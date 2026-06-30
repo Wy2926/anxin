@@ -1,15 +1,16 @@
 import { useState, type CSSProperties } from 'react'
 import { useAppState, TILE_LABEL, type ElderTileKey } from '../store.tsx'
-import { Icon } from '../components/Icon.tsx'
+import { Icon, type IconName } from '../components/Icon.tsx'
 import { TILE_META } from './tileMeta.ts'
 
 export function ElderApp() {
-  const { state, dispatch } = useAppState()
-  const { elderLayout } = state
+  const { state, active, dispatch } = useAppState()
+  const { elderLayout } = active
   const [sosCountdown, setSosCountdown] = useState<number | null>(null)
-  const reminder = state.activeReminderId
-    ? state.meds.find((m) => m.id === state.activeReminderId)
+  const reminder = active.activeReminderId
+    ? active.meds.find((m) => m.id === active.activeReminderId)
     : null
+  const nextMed = active.meds.find((m) => m.status !== 'taken')
 
   const startSos = () => {
     let n = 3
@@ -28,10 +29,16 @@ export function ElderApp() {
   }
 
   const triggerMed = () =>
-    dispatch({ type: 'TRIGGER_REMINDER', id: state.meds.find((m) => m.status !== 'taken')?.id ?? state.meds[0].id })
+    dispatch({ type: 'TRIGGER_REMINDER', id: (nextMed ?? active.meds[0]).id })
 
-  const tileLabel = (key: ElderTileKey) =>
-    key === 'call' ? `给${state.guardianName}打电话` : TILE_LABEL[key]
+  const tileSub: Record<ElderTileKey, string> = {
+    call: `给${state.guardianName}`,
+    video: '看看家人',
+    med: nextMed ? `${nextMed.time} ${nextMed.name}` : '今日已完成',
+    album: '全家福',
+    radio: '戏曲 · 新闻',
+    askChild: '请子女帮忙',
+  }
 
   const tileAction = (key: ElderTileKey): (() => void) => {
     switch (key) {
@@ -49,83 +56,93 @@ export function ElderApp() {
 
   return (
     <div className={`e-app${elderLayout.highContrast ? ' hc' : ''}`} style={appStyle}>
-      {state.layoutPushedAt && (
+      {active.layoutPushedAt && (
         <div className="e-layout-notice">
           <span><Icon name="wand" size={18} /> {state.guardianName}帮你调整了主屏</span>
           <button onClick={() => dispatch({ type: 'DISMISS_LAYOUT_NOTICE' })}>知道了</button>
         </div>
       )}
 
-      {state.screenAssist === 'active' && (
+      {active.screenAssist === 'active' && (
         <div className="e-assist-bar">
           <span><i className="live-dot" /> 孩子正在帮你看手机</span>
-          <button onClick={() => dispatch({ type: 'END_SCREEN_ASSIST' })}>结 束</button>
+          <button onClick={() => dispatch({ type: 'END_SCREEN_ASSIST' })}>结束</button>
         </div>
       )}
 
-      <div className="e-greeting">
-        <span className="e-weather">☀️ 26℃ 多云 · 空气良</span>
-        <span className="e-hello">您好，{state.elderName}</span>
-      </div>
+      <header className="e-header">
+        <div>
+          <div className="e-hello">您好，{active.name}</div>
+          <div className="e-weather">6月30日 周二 · ☀️ 26℃</div>
+        </div>
+        <span className="e-avatar">{active.avatar}</span>
+      </header>
+
+      {nextMed && (
+        <button className="e-next-med" onClick={triggerMed}>
+          <span className="e-next-ico"><Icon name="clock" size={22} /></span>
+          <span className="e-next-text">
+            <b>{nextMed.time} 吃{nextMed.name}</b>
+            <small>{nextMed.dose} · {nextMed.note}</small>
+          </span>
+          <Icon name="chevron" size={20} />
+        </button>
+      )}
 
       <div className="e-grid">
         {tiles.map((t) => {
           const meta = TILE_META[t.key]
           return (
             <button key={t.key} className={`e-card ${meta.cls}`} onClick={tileAction(t.key)}>
-              <span className="e-ico"><Icon name={meta.icon} size={34} /></span>
-              <span className="e-card-label">{tileLabel(t.key)}</span>
+              <span className="e-ico"><Icon name={meta.icon} size={26} /></span>
+              <span className="e-card-text">
+                <b>{TILE_LABEL[t.key]}</b>
+                <small>{tileSub[t.key]}</small>
+              </span>
             </button>
           )
         })}
       </div>
 
-      <div className="e-care">
-        <span className="e-care-ico"><Icon name="clock" size={20} /></span>
-        <span className="grow">记得 12:30 吃降糖药，饭前一片</span>
-        {elderLayout.voice && <span className="e-care-voice"><Icon name="mic" size={18} /></span>}
-      </div>
-
       <div className="e-bottom">
         <button className="e-safe" onClick={() => dispatch({ type: 'REPORT_SAFE' })}>
-          <span className="e-safe-ico"><Icon name="check" size={22} /></span>
-          <span>我很好{state.lastSafeReport && <small>上次 {state.lastSafeReport}</small>}</span>
+          <span className="e-safe-ico"><Icon name="check" size={20} /></span>
+          <span className="e-safe-text">
+            <b>我很好</b>
+            {active.lastSafeReport && <small>上次 {active.lastSafeReport}</small>}
+          </span>
         </button>
         <button className="e-sos" onClick={startSos}>
-          <Icon name="siren" size={28} />
+          <Icon name="siren" size={26} />
           求救
         </button>
       </div>
 
       {reminder && (
-        <div className="e-modal-mask">
-          <div className="e-sheet">
-            <div className="e-sheet-ico med"><Icon name="pill" size={40} /></div>
-            <div className="e-sheet-title">该吃【{reminder.name}】了</div>
-            <div className="e-sheet-sub">{reminder.dose} · {reminder.note}</div>
-            <div className="e-sheet-btns">
-              <button className="e-yes" onClick={() => dispatch({ type: 'TAKE_MED', id: reminder.id })}>已经吃了</button>
-              <button className="e-later" onClick={() => dispatch({ type: 'SNOOZE_MED', id: reminder.id })}>稍后提醒</button>
-            </div>
-            {elderLayout.voice && (
-              <div className="e-sheet-voice"><Icon name="mic" size={16} /> 正在语音播报…</div>
-            )}
-          </div>
-        </div>
+        <Sheet
+          icon="pill"
+          tone="med"
+          title={`该吃【${reminder.name}】了`}
+          sub={`${reminder.dose} · ${reminder.note}`}
+          yes="已经吃了"
+          no="稍后提醒"
+          onYes={() => dispatch({ type: 'TAKE_MED', id: reminder.id })}
+          onNo={() => dispatch({ type: 'SNOOZE_MED', id: reminder.id })}
+          voice={elderLayout.voice}
+        />
       )}
 
-      {state.screenAssist === 'requesting' && (
-        <div className="e-modal-mask">
-          <div className="e-sheet">
-            <div className="e-sheet-ico assist"><Icon name="monitor" size={40} /></div>
-            <div className="e-sheet-title">{state.guardianName}想帮你看看手机</div>
-            <div className="e-sheet-sub">同意后孩子能看到你的屏幕，随时可结束</div>
-            <div className="e-sheet-btns">
-              <button className="e-yes" onClick={() => dispatch({ type: 'ACCEPT_SCREEN_ASSIST' })}>同 意</button>
-              <button className="e-later" onClick={() => dispatch({ type: 'DECLINE_SCREEN_ASSIST' })}>拒 绝</button>
-            </div>
-          </div>
-        </div>
+      {active.screenAssist === 'requesting' && (
+        <Sheet
+          icon="monitor"
+          tone="assist"
+          title={`${state.guardianName}想帮你看看手机`}
+          sub="同意后孩子能看到你的屏幕，随时可结束"
+          yes="同意"
+          no="拒绝"
+          onYes={() => dispatch({ type: 'ACCEPT_SCREEN_ASSIST' })}
+          onNo={() => dispatch({ type: 'DECLINE_SCREEN_ASSIST' })}
+        />
       )}
 
       {sosCountdown !== null && (
@@ -134,10 +151,47 @@ export function ElderApp() {
             <div className="e-sos-ring">{sosCountdown}</div>
             <div className="e-sheet-title">正在求助…</div>
             <div className="e-sheet-sub">点一下可取消</div>
-            <button className="e-cancel" onClick={() => setSosCountdown(null)}>取 消</button>
+            <button className="e-cancel" onClick={() => setSosCountdown(null)}>取消</button>
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function Sheet({
+  icon,
+  tone,
+  title,
+  sub,
+  yes,
+  no,
+  onYes,
+  onNo,
+  voice,
+}: {
+  icon: IconName
+  tone: 'med' | 'assist'
+  title: string
+  sub: string
+  yes: string
+  no: string
+  onYes: () => void
+  onNo: () => void
+  voice?: boolean
+}) {
+  return (
+    <div className="e-modal-mask">
+      <div className="e-sheet">
+        <div className={`e-sheet-ico ${tone}`}><Icon name={icon} size={36} /></div>
+        <div className="e-sheet-title">{title}</div>
+        <div className="e-sheet-sub">{sub}</div>
+        <div className="e-sheet-btns">
+          <button className="e-yes" onClick={onYes}>{yes}</button>
+          <button className="e-later" onClick={onNo}>{no}</button>
+        </div>
+        {voice && <div className="e-sheet-voice"><Icon name="mic" size={16} /> 正在语音播报…</div>}
+      </div>
     </div>
   )
 }

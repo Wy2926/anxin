@@ -18,14 +18,6 @@ export interface Medication {
   stock: number
 }
 
-export interface Alert {
-  id: string
-  level: 'info' | 'warn' | 'urgent'
-  title: string
-  detail: string
-  time: string
-}
-
 export type ScreenAssist = 'idle' | 'requesting' | 'active'
 
 /** 父母端首屏可编排的磁贴种类 */
@@ -38,7 +30,7 @@ export interface ElderTile {
 
 export type ElderTemplate = 'minimal' | 'standard' | 'rich'
 
-/** 子女远程编排父母端首屏的配置（M7） */
+/** 子女远程编排某位父母首屏的配置（M7，按家长各自保存） */
 export interface ElderLayout {
   template: ElderTemplate
   /** 适老字号缩放，1.0–1.4 */
@@ -50,22 +42,39 @@ export interface ElderLayout {
   tiles: ElderTile[]
 }
 
-export interface AppState {
-  elderName: string
-  guardianName: string
+export interface Elder {
+  id: string
+  name: string
+  relation: string
+  avatar: string
   online: boolean
   battery: number
   steps: number
+  heart: number
   lastSafeReport: string | null
   meds: Medication[]
-  alerts: Alert[]
   screenAssist: ScreenAssist
-  /** 父母端待弹出的用药提醒（取最近一条 due/missed） */
   activeReminderId: string | null
-  /** 当前生效的父母端首屏编排 */
+  /** 当前生效的首屏编排 */
   elderLayout: ElderLayout
-  /** 子女最近一次推送编排的时间标签；非空表示父母端有未读「主屏已更新」提示 */
+  /** 子女最近一次推送编排的时间标签；非空表示该家长有未读「主屏已更新」提示 */
   layoutPushedAt: string | null
+}
+
+export interface Alert {
+  id: string
+  elderId: string
+  level: 'info' | 'warn' | 'urgent'
+  title: string
+  detail: string
+  time: string
+}
+
+export interface AppState {
+  guardianName: string
+  elders: Elder[]
+  activeElderId: string
+  alerts: Alert[]
 }
 
 export const TEMPLATE_LABEL: Record<ElderTemplate, string> = {
@@ -100,7 +109,12 @@ export function tilesFromTemplate(template: ElderTemplate): ElderTile[] {
   return [...on, ...rest].map((key) => ({ key, enabled: on.includes(key) }))
 }
 
+function layout(template: ElderTemplate, extra?: Partial<ElderLayout>): ElderLayout {
+  return { template, fontScale: 1, highContrast: false, voice: true, tiles: tilesFromTemplate(template), ...extra }
+}
+
 type Action =
+  | { type: 'SET_ACTIVE_ELDER'; id: string }
   | { type: 'TAKE_MED'; id: string }
   | { type: 'SNOOZE_MED'; id: string }
   | { type: 'TRIGGER_REMINDER'; id: string }
@@ -116,10 +130,7 @@ type Action =
   | { type: 'DISMISS_LAYOUT_NOTICE' }
 
 function nowLabel(): string {
-  return new Date().toLocaleTimeString('zh-CN', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
+  return new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
 }
 
 function uid(): string {
@@ -127,102 +138,124 @@ function uid(): string {
 }
 
 const initialState: AppState = {
-  elderName: '爸爸',
   guardianName: '小明',
-  online: true,
-  battery: 85,
-  steps: 3200,
-  lastSafeReport: '10:12',
-  screenAssist: 'idle',
-  activeReminderId: null,
-  elderLayout: {
-    template: 'standard',
-    fontScale: 1,
-    highContrast: false,
-    voice: true,
-    tiles: tilesFromTemplate('standard'),
-  },
-  layoutPushedAt: null,
-  meds: [
-    { id: 'm1', name: '降压药', dose: '1 片', time: '08:00', note: '饭后', status: 'taken', stock: 12 },
-    { id: 'm2', name: '降糖药', dose: '1 片', time: '12:30', note: '饭前', status: 'due', stock: 6 },
-    { id: 'm3', name: '钙片', dose: '2 片', time: '20:00', note: '睡前', status: 'pending', stock: 3 },
+  activeElderId: 'e1',
+  elders: [
+    {
+      id: 'e1',
+      name: '爸爸',
+      relation: '父亲 · 赵建国',
+      avatar: '👴',
+      online: true,
+      battery: 85,
+      steps: 3200,
+      heart: 72,
+      lastSafeReport: '10:12',
+      screenAssist: 'idle',
+      activeReminderId: null,
+      elderLayout: layout('standard'),
+      layoutPushedAt: null,
+      meds: [
+        { id: 'e1m1', name: '降压药', dose: '1 片', time: '08:00', note: '饭后', status: 'taken', stock: 12 },
+        { id: 'e1m2', name: '降糖药', dose: '1 片', time: '12:30', note: '饭前', status: 'due', stock: 6 },
+        { id: 'e1m3', name: '钙片', dose: '2 片', time: '20:00', note: '睡前', status: 'pending', stock: 3 },
+      ],
+    },
+    {
+      id: 'e2',
+      name: '妈妈',
+      relation: '母亲 · 李秀兰',
+      avatar: '👵',
+      online: true,
+      battery: 64,
+      steps: 5100,
+      heart: 76,
+      lastSafeReport: '09:40',
+      screenAssist: 'idle',
+      activeReminderId: null,
+      elderLayout: layout('minimal', { fontScale: 1.2 }),
+      layoutPushedAt: null,
+      meds: [
+        { id: 'e2m1', name: '钙片', dose: '1 片', time: '09:00', note: '早餐后', status: 'taken', stock: 20 },
+        { id: 'e2m2', name: '阿司匹林', dose: '1 片', time: '19:00', note: '睡前', status: 'pending', stock: 9 },
+      ],
+    },
   ],
   alerts: [
-    { id: 'a0', level: 'info', title: '父母报了平安', detail: '爸爸点击了“我很好”', time: '10:12' },
+    { id: 'a0', elderId: 'e1', level: 'info', title: '父母报了平安', detail: '爸爸点击了“我很好”', time: '10:12' },
+    { id: 'a1', elderId: 'e2', level: 'info', title: '父母报了平安', detail: '妈妈点击了“我很好”', time: '09:40' },
   ],
 }
 
+function mapActive(state: AppState, fn: (e: Elder) => Elder): Elder[] {
+  return state.elders.map((e) => (e.id === state.activeElderId ? fn(e) : e))
+}
+
+function activeElder(state: AppState): Elder {
+  return state.elders.find((e) => e.id === state.activeElderId) ?? state.elders[0]
+}
+
 function reducer(state: AppState, action: Action): AppState {
+  const active = activeElder(state)
   switch (action.type) {
+    case 'SET_ACTIVE_ELDER':
+      return { ...state, activeElderId: action.id }
     case 'TAKE_MED': {
-      const meds = state.meds.map((m) =>
-        m.id === action.id
-          ? { ...m, status: 'taken' as MedStatus, stock: Math.max(0, m.stock - 1) }
-          : m,
-      )
-      const med = state.meds.find((m) => m.id === action.id)
+      const med = active.meds.find((m) => m.id === action.id)
+      const elders = mapActive(state, (e) => ({
+        ...e,
+        activeReminderId: e.activeReminderId === action.id ? null : e.activeReminderId,
+        meds: e.meds.map((m) =>
+          m.id === action.id ? { ...m, status: 'taken' as MedStatus, stock: Math.max(0, m.stock - 1) } : m,
+        ),
+      }))
       const alerts: Alert[] = med
         ? [
-            {
-              id: uid(),
-              level: 'info',
-              title: '服药打卡 ✓',
-              detail: `${state.elderName}已服用「${med.name}」`,
-              time: nowLabel(),
-            },
+            { id: uid(), elderId: active.id, level: 'info', title: '服药打卡 ✓', detail: `${active.name}已服用「${med.name}」`, time: nowLabel() },
             ...state.alerts,
           ]
         : state.alerts
-      return {
-        ...state,
-        meds,
-        alerts,
-        activeReminderId: state.activeReminderId === action.id ? null : state.activeReminderId,
-      }
+      return { ...state, elders, alerts }
     }
     case 'SNOOZE_MED':
       return {
         ...state,
-        activeReminderId: state.activeReminderId === action.id ? null : state.activeReminderId,
+        elders: mapActive(state, (e) => ({
+          ...e,
+          activeReminderId: e.activeReminderId === action.id ? null : e.activeReminderId,
+        })),
       }
     case 'TRIGGER_REMINDER':
-      return { ...state, activeReminderId: action.id }
+      return { ...state, elders: mapActive(state, (e) => ({ ...e, activeReminderId: action.id })) }
     case 'DISMISS_REMINDER':
-      return { ...state, activeReminderId: null }
+      return { ...state, elders: mapActive(state, (e) => ({ ...e, activeReminderId: null })) }
     case 'REQUEST_SCREEN_ASSIST':
-      return { ...state, screenAssist: 'requesting' }
+      return { ...state, elders: mapActive(state, (e) => ({ ...e, screenAssist: 'requesting' })) }
     case 'ACCEPT_SCREEN_ASSIST':
       return {
         ...state,
-        screenAssist: 'active',
+        elders: mapActive(state, (e) => ({ ...e, screenAssist: 'active' })),
         alerts: [
-          { id: uid(), level: 'info', title: '远程协助已开始', detail: `${state.elderName}同意了看屏协助`, time: nowLabel() },
+          { id: uid(), elderId: active.id, level: 'info', title: '远程协助已开始', detail: `${active.name}同意了看屏协助`, time: nowLabel() },
           ...state.alerts,
         ],
       }
     case 'DECLINE_SCREEN_ASSIST':
       return {
         ...state,
-        screenAssist: 'idle',
+        elders: mapActive(state, (e) => ({ ...e, screenAssist: 'idle' })),
         alerts: [
-          { id: uid(), level: 'info', title: '协助被拒绝', detail: `${state.elderName}拒绝了看屏请求`, time: nowLabel() },
+          { id: uid(), elderId: active.id, level: 'info', title: '协助被拒绝', detail: `${active.name}拒绝了看屏请求`, time: nowLabel() },
           ...state.alerts,
         ],
       }
     case 'END_SCREEN_ASSIST':
-      return { ...state, screenAssist: 'idle' }
+      return { ...state, elders: mapActive(state, (e) => ({ ...e, screenAssist: 'idle' })) }
     case 'SOS':
       return {
         ...state,
         alerts: [
-          {
-            id: uid(),
-            level: 'urgent',
-            title: '🆘 紧急求助！',
-            detail: `${state.elderName}触发了 SOS，请立即联系`,
-            time: nowLabel(),
-          },
+          { id: uid(), elderId: active.id, level: 'urgent', title: '🆘 紧急求助！', detail: `${active.name}触发了 SOS，请立即联系`, time: nowLabel() },
           ...state.alerts,
         ],
       }
@@ -230,28 +263,28 @@ function reducer(state: AppState, action: Action): AppState {
       const time = nowLabel()
       return {
         ...state,
-        lastSafeReport: time,
+        elders: mapActive(state, (e) => ({ ...e, lastSafeReport: time })),
         alerts: [
-          { id: uid(), level: 'info', title: '父母报了平安', detail: `${state.elderName}点击了“我很好”`, time },
+          { id: uid(), elderId: active.id, level: 'info', title: '父母报了平安', detail: `${active.name}点击了“我很好”`, time },
           ...state.alerts,
         ],
       }
     }
     case 'ADD_MED':
-      return { ...state, meds: [...state.meds, action.med] }
+      return { ...state, elders: mapActive(state, (e) => ({ ...e, meds: [...e.meds, action.med] })) }
     case 'APPLY_ELDER_LAYOUT': {
       const time = nowLabel()
       const enabledCount = action.layout.tiles.filter((t) => t.enabled).length
       return {
         ...state,
-        elderLayout: action.layout,
-        layoutPushedAt: time,
+        elders: mapActive(state, (e) => ({ ...e, elderLayout: action.layout, layoutPushedAt: time })),
         alerts: [
           {
             id: uid(),
+            elderId: active.id,
             level: 'info',
             title: '父母端主屏已更新',
-            detail: `已推送「${TEMPLATE_LABEL[action.layout.template]}」布局 · ${enabledCount} 个入口到${state.elderName}的手机`,
+            detail: `已推送「${TEMPLATE_LABEL[action.layout.template]}」布局 · ${enabledCount} 个入口到${active.name}的手机`,
             time,
           },
           ...state.alerts,
@@ -259,7 +292,7 @@ function reducer(state: AppState, action: Action): AppState {
       }
     }
     case 'DISMISS_LAYOUT_NOTICE':
-      return { ...state, layoutPushedAt: null }
+      return { ...state, elders: mapActive(state, (e) => ({ ...e, layoutPushedAt: null })) }
     default:
       return state
   }
@@ -267,6 +300,7 @@ function reducer(state: AppState, action: Action): AppState {
 
 interface Store {
   state: AppState
+  active: Elder
   dispatch: React.Dispatch<Action>
 }
 
@@ -274,7 +308,7 @@ const AppStateContext = createContext<Store | null>(null)
 
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState)
-  const value = useMemo(() => ({ state, dispatch }), [state])
+  const value = useMemo(() => ({ state, active: activeElder(state), dispatch }), [state])
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>
 }
 

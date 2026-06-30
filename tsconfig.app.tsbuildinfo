@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/store.tsx","./src/elder/ElderApp.tsx","./src/guardian/Dashboard.tsx","./src/guardian/GuardianApp.tsx","./src/guardian/MedManager.tsx","./src/guardian/Messages.tsx"],"version":"5.9.3"}
